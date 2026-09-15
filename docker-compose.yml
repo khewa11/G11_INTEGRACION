@@ -1,0 +1,9 @@
+services:
+  sensores:
+    build:
+      context: .
+      dockerfile: sensores/Dockerfile
+    container_name: gRPC_sensores
+    ports:
+      - "50051:50051"
+    restart: always
