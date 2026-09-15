@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package sensores;
+
+// Servicio gRPC (gestion fisica y plazas del estacionamiento)
+service SensoresService {
+  // Consultar disponibilidad de un sector
+  rpc ConsultarSector (SectorRequest) returns (SectorResponse);
+  
+  // Listar todos los sectores
+  rpc ListarSectores (Empty) returns (SectoresListResponse);
+  
+  // Ocupar una plaza (+1 ocupado)
+  rpc OcuparPlaza (ModificarPlazaRequest) returns (OperacionResponse);
+  
+  // Liberar una plaza (-1 ocupado)
+  rpc LiberarPlaza (ModificarPlazaRequest) returns (OperacionResponse);
+}
+
+// Mensaje vacio para peticiones sin parametros
+message Empty {}
+
+// Peticion para buscar un sector por ID
+message SectorRequest {
+  string sector_id = 1;
+}
+
+// Respuesta con datos y plazas del sector
+message SectorResponse {
+  string sector_id = 1;
+  string nombre = 2;
+  int32 plazas_totales = 3;
+  int32 plazas_libres = 4;
+}
+
+// Respuesta con lista de los sectores
+message SectoresListResponse {
+  repeated SectorResponse sectores = 1;
+}
+
+// Peticion para modificar disponibilidad
+message ModificarPlazaRequest {
+  string sector_id = 1;
+}
+
+// Respuesta de confirmacion de operacion
+message OperacionResponse {
+  bool exito = 1;
+  string mensaje = 2;
+  int32 plazas_libres_restantes = 3;
+}
