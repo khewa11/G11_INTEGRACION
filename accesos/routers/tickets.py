@@ -18,17 +18,47 @@ def get_api_key(api_key: str = Security(api_key_header)):
 
 @router.post("/", response_model=schemas.Ticket, status_code=201)
 def emitir_ticket(ticket: schemas.TicketCreate, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
-    # 1. Verificar si el vehículo existe (Regla de negocio: el vehículo debe existir para entrar)
-    # db_vehiculo = db.query(models.Vehiculo).filter(models.Vehiculo.patente == ticket.patente).first()
-    # if not db_vehiculo:
-    #     raise HTTPException(status_code=404, detail="Vehículo no registrado")
+    # Opcional: Verificar si el vehículo existe
+    db_vehiculo = db.query(models.Vehiculo).filter(models.Vehiculo.patente == ticket.patente).first()
+    if not db_vehiculo:
+        raise HTTPException(status_code=404, detail="Vehículo no registrado. Debe crearlo primero.")
         
-    # 2. Verificar y ocupar plaza vía gRPC (Sensores)
+    # Verificar y ocupar plaza vía gRPC (Sensores)
     grpc_client.verificar_y_ocupar_plaza(ticket.sector_id)
     
-    # 3. Guardar el ticket
+    # Guardar el ticket
     nuevo_ticket = models.Ticket(patente=ticket.patente, sector_id=ticket.sector_id, estado="activo")
     db.add(nuevo_ticket)
     db.commit()
     db.refresh(nuevo_ticket)
     return nuevo_ticket
+
+@router.get("/", response_model=List[schemas.Ticket])
+def listar_tickets(db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+    return db.query(models.Ticket).all()
+
+@router.get("/{ticket_id}", response_model=schemas.Ticket)
+def consultar_ticket(ticket_id: int, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+    db_ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not db_ticket:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+    return db_ticket
+
+@router.post("/{ticket_id}/revertir", response_model=schemas.Ticket)
+def revertir_ticket(ticket_id: int, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+    db_ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not db_ticket:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+        
+    if db_ticket.estado != "activo":
+        raise HTTPException(status_code=400, detail="El ticket ya ha sido revertido o finalizado")
+        
+    # Liberar la plaza en el sistema de Sensores vía gRPC
+    grpc_client.liberar_plaza(db_ticket.sector_id)
+    
+    # Actualizar estado del ticket
+    db_ticket.estado = "revertido"
+    db.commit()
+    db.refresh(db_ticket)
+    
+    return db_ticket
