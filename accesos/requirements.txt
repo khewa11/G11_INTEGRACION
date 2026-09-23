@@ -3,3 +3,5 @@ uvicorn
 grpcio
 protobuf
 grpcio-tools
+sqlalchemy
+pydantic
