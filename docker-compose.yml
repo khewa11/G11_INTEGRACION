@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   sensores:
     build:
@@ -6,4 +8,15 @@ services:
     container_name: gRPC_sensores
     ports:
       - "50051:50051"
+    restart: always
+
+  accesos:
+    build:
+      context: .
+      dockerfile: accesos/Dockerfile
+    container_name: api_accesos
+    ports:
+      - "8000:8000"
+    depends_on:
+      - sensores
     restart: always

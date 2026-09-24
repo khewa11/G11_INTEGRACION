@@ -8,7 +8,7 @@ GRPC_CHANNEL = 'sensores:50051'
 def verificar_y_ocupar_plaza(sector_id: str):
     try:
         with grpc.insecure_channel(GRPC_CHANNEL) as channel:
-            stub = sensores_pb2_grpc.SensoresStub(channel)
+            stub = sensores_pb2_grpc.SensoresServiceStub(channel)
             
             # Consultar disponibilidad en el sector
             response = stub.ConsultarSector(
@@ -34,7 +34,7 @@ def verificar_y_ocupar_plaza(sector_id: str):
 def liberar_plaza(sector_id: str):
     try:
         with grpc.insecure_channel(GRPC_CHANNEL) as channel:
-            stub = sensores_pb2_grpc.SensoresStub(channel)
+            stub = sensores_pb2_grpc.SensoresServiceStub(channel)
             
             # Liberar plaza
             liberar_res = stub.LiberarPlaza(sensores_pb2.ModificarPlazaRequest(sector_id=sector_id))
@@ -46,3 +46,4 @@ def liberar_plaza(sector_id: str):
         if e.code() == grpc.StatusCode.NOT_FOUND:
             raise HTTPException(status_code=404, detail="Sector inexistente en sensores")
         raise HTTPException(status_code=503, detail="Servicio de sensores temporalmente inactivo")
+    
