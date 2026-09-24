@@ -1,7 +1,4 @@
-fastapi
-uvicorn
+fastapi==0.141.1
 grpcio
-protobuf
-grpcio-tools
-sqlalchemy
-pydantic
+pydantic==2.13.5
+SQLAlchemy==2.0.54
