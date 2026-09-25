@@ -75,54 +75,60 @@ class SensoresServicer(sensores_pb2_grpc.SensoresServiceServicer):
         ]
         return sensores_pb2.SectoresListResponse(sectores=sectores)
 
-    # Restar 1 a plazas libres
+    # Restar 1 a plazas libres (operación atómica para evitar race condition)
     def OcuparPlaza(self, request, context):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # Verificar disponibilidad
-        cursor.execute("SELECT plazas_libres FROM sectores WHERE id = ?", (request.sector_id,))
-        row = cursor.fetchone()
+        # UPDATE atómico: solo decrementa si hay plazas libres > 0
+        cursor.execute(
+            "UPDATE sectores SET plazas_libres = plazas_libres - 1 WHERE id = ? AND plazas_libres > 0",
+            (request.sector_id,)
+        )
+        conn.commit()
 
-        if not row:
+        if cursor.rowcount == 0:
+            # No se actualizó: el sector no existe o está lleno
+            cursor.execute("SELECT plazas_libres FROM sectores WHERE id = ?", (request.sector_id,))
+            row = cursor.fetchone()
             conn.close()
-            return sensores_pb2.OperacionResponse(exito=False, mensaje="Sector inexistente", plazas_libres_restantes=0)
 
-        libres = row[0]
-        if libres <= 0:
-            conn.close()
+            if not row:
+                return sensores_pb2.OperacionResponse(exito=False, mensaje="Sector inexistente", plazas_libres_restantes=0)
             return sensores_pb2.OperacionResponse(exito=False, mensaje="Sector lleno", plazas_libres_restantes=0)
 
-        # Actualiza base de datos
-        nuevas_libres = libres - 1
-        cursor.execute("UPDATE sectores SET plazas_libres = ? WHERE id = ?", (nuevas_libres, request.sector_id))
-        conn.commit()
+        # Leer el valor actualizado para informar al cliente
+        cursor.execute("SELECT plazas_libres FROM sectores WHERE id = ?", (request.sector_id,))
+        nuevas_libres = cursor.fetchone()[0]
         conn.close()
 
         return sensores_pb2.OperacionResponse(exito=True, mensaje="Plaza ocupada con éxito", plazas_libres_restantes=nuevas_libres)
 
-    # Sumar 1 a plazas libres
+    # Sumar 1 a plazas libres (operación atómica para evitar race condition)
     def LiberarPlaza(self, request, context):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # Verificar capacidad del sector
-        cursor.execute("SELECT plazas_totales, plazas_libres FROM sectores WHERE id = ?", (request.sector_id,))
-        row = cursor.fetchone()
-
-        if not row:
-            conn.close()
-            return sensores_pb2.OperacionResponse(exito=False, mensaje="Sector inexistente", plazas_libres_restantes=0)
-
-        totales, libres = row[0], row[1]
-        if libres >= totales:
-            conn.close()
-            return sensores_pb2.OperacionResponse(exito=False, mensaje="Sector ya está a máxima capacidad", plazas_libres_restantes=libres)
-
-        # Actualiza base de datos
-        nuevas_libres = libres + 1
-        cursor.execute("UPDATE sectores SET plazas_libres = ? WHERE id = ?", (nuevas_libres, request.sector_id))
+        # UPDATE atómico: solo incrementa si plazas_libres < plazas_totales
+        cursor.execute(
+            "UPDATE sectores SET plazas_libres = plazas_libres + 1 WHERE id = ? AND plazas_libres < plazas_totales",
+            (request.sector_id,)
+        )
         conn.commit()
+
+        if cursor.rowcount == 0:
+            # No se actualizó: el sector no existe o ya está a máxima capacidad
+            cursor.execute("SELECT plazas_totales, plazas_libres FROM sectores WHERE id = ?", (request.sector_id,))
+            row = cursor.fetchone()
+            conn.close()
+
+            if not row:
+                return sensores_pb2.OperacionResponse(exito=False, mensaje="Sector inexistente", plazas_libres_restantes=0)
+            return sensores_pb2.OperacionResponse(exito=False, mensaje="Sector ya está a máxima capacidad", plazas_libres_restantes=row[1])
+
+        # Leer el valor actualizado para informar al cliente
+        cursor.execute("SELECT plazas_libres FROM sectores WHERE id = ?", (request.sector_id,))
+        nuevas_libres = cursor.fetchone()[0]
         conn.close()
 
         return sensores_pb2.OperacionResponse(exito=True, mensaje="Plaza liberada con éxito", plazas_libres_restantes=nuevas_libres)
