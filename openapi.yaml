@@ -1,34 +1,281 @@
 openapi: 3.0.3
 info:
   title: API de Accesos - Estacionamiento
+  description: >
+    API REST pública del sistema de Accesos para la Operadora de
+    Estacionamientos del Centro. Gestiona vehículos y tickets de acceso,
+    consultando disponibilidad de plazas al servicio interno de Sensores
+    mediante gRPC.
   version: 1.0.0
+
 servers:
   - url: /v1
+
+# ─── Seguridad global ────────────────────────────────────────────
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: X-API-Key
+
+  schemas:
+    # ── Vehículos ──
+    VehiculoCreate:
+      type: object
+      required: [patente]
+      properties:
+        patente:
+          type: string
+          example: "ABCD-12"
+
+    Vehiculo:
+      type: object
+      properties:
+        patente:
+          type: string
+          example: "ABCD-12"
+
+    # ── Tickets ──
+    TicketCreate:
+      type: object
+      required: [patente, sector_id]
+      properties:
+        patente:
+          type: string
+          example: "ABCD-12"
+        sector_id:
+          type: string
+          example: "sec-a"
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        patente:
+          type: string
+          example: "ABCD-12"
+        sector_id:
+          type: string
+          example: "sec-a"
+        estado:
+          type: string
+          enum: [activo, revertido]
+          example: "activo"
+
+    # ── Errores ──
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: "Recurso no encontrado"
+
 security:
   - ApiKeyAuth: []
+
+# ─── Endpoints ────────────────────────────────────────────────────
 paths:
-  /tickets:
+
+  # ════════════════════════════════════════
+  #  VEHÍCULOS
+  # ════════════════════════════════════════
+  /vehiculos:
     post:
-      summary: Emite un ticket de acceso
+      tags: [Vehículos]
+      summary: Registrar un vehículo
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                patente: { type: string }
-                sector_id: { type: string }
+              $ref: '#/components/schemas/VehiculoCreate'
       responses:
         '201':
-          description: Ticket emitido
+          description: Vehículo registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehiculo'
+        '400':
+          description: El vehículo ya está registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: API Key inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      tags: [Vehículos]
+      summary: Listar todos los vehículos
+      responses:
+        '200':
+          description: Lista de vehículos registrados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vehiculo'
+        '403':
+          description: API Key inválida
+
+  /vehiculos/{patente}:
+    get:
+      tags: [Vehículos]
+      summary: Consultar un vehículo por patente
+      parameters:
+        - name: patente
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Datos del vehículo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehiculo'
+        '403':
+          description: API Key inválida
+        '404':
+          description: Vehículo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════
+  #  TICKETS
+  # ════════════════════════════════════════
+  /tickets:
+    post:
+      tags: [Tickets]
+      summary: Emitir un ticket de acceso
+      description: >
+        Verifica que el vehículo esté registrado, consulta disponibilidad de
+        plazas al servicio de Sensores (gRPC) y, si hay plazas libres, ocupa
+        una plaza y emite el ticket.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketCreate'
+      responses:
+        '201':
+          description: Ticket emitido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
         '400':
           description: Sector sin plazas libres
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: API Key inválida
+        '404':
+          description: Vehículo no registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
           description: Servicio de sensores no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      tags: [Tickets]
+      summary: Listar todos los tickets
+      responses:
+        '200':
+          description: Lista de tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ticket'
+        '403':
+          description: API Key inválida
+
+  /tickets/{ticket_id}:
+    get:
+      tags: [Tickets]
+      summary: Consultar un ticket por ID
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Datos del ticket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '403':
+          description: API Key inválida
+        '404':
+          description: Ticket no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tickets/{ticket_id}/revertir:
+    post:
+      tags: [Tickets]
+      summary: Revertir un ticket (liberar plaza)
+      description: >
+        Cambia el estado del ticket a "revertido" y libera la plaza ocupada
+        en el servicio de Sensores mediante gRPC.
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Ticket revertido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          description: El ticket ya fue revertido o finalizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: API Key inválida
+        '404':
+          description: Ticket no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Servicio de sensores no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
