@@ -1,0 +1,4 @@
+# Archivos generados por la compilación proto (se regeneran)
+sensores_pb2.py
+sensores_pb2_grpc.py
+__pycache__/
