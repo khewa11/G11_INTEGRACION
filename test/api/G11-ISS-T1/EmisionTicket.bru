@@ -1,0 +1,28 @@
+meta {
+  name: EmisionTicket
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/v1/tickets/
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-API-KEY: supersecreto
+}
+
+body:json {
+  {
+    "patente": "ITKG-50",
+    "sector_id": "sec-a"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

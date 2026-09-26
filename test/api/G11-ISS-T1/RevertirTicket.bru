@@ -1,0 +1,21 @@
+meta {
+  name: RevertirTicket
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/v1/tickets/1/revertir
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-API-KEY: supersecreto
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

@@ -1,0 +1,25 @@
+meta {
+  name: ConsultarPatente
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/v1/vehiculos/?patente=ITKG-50
+  body: none
+  auth: inherit
+}
+
+params:query {
+  patente: ITKG-50
+}
+
+headers {
+  X-API-KEY: supersecreto
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

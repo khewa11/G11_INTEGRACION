@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "G11-ISS-T1",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

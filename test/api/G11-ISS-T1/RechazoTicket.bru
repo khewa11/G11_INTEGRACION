@@ -1,0 +1,28 @@
+meta {
+  name: RechazoTicket
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/v1/tickets/
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-API-KEY: supersecreto
+}
+
+body:json {
+  {
+    "patente": "ITKG-50",
+    "sector_id": "sec-b"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

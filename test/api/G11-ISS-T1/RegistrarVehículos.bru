@@ -1,0 +1,27 @@
+meta {
+  name: RegistrarVehículos
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/vehiculos/
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-API-Key: supersecreto
+}
+
+body:json {
+  {
+    "patente": "ITKG-50"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

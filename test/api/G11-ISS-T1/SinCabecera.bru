@@ -1,0 +1,17 @@
+meta {
+  name: SinCabecera
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/vehiculos/
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}
